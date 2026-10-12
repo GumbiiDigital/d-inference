@@ -12,10 +12,13 @@ mkdir -p "$SHIM"
 ln -sf "$OB/lib/libopenblas.so" "$SHIM/libblas.so"
 ln -sf "$OB/lib/libopenblas.so" "$SHIM/liblapack.so"
 ln -sf "$CUDNN/lib/libcudnn.so.9" "$SHIM/libcudnn.so"
+# CUDA 13.0 rejects clang 21 (Swift 6.3.3) as host compiler; override for this test (unsupported pair, results checked numerically).
+CCCL=$D/third_party/cccl-v3.1.3/include; CUTLASS=$D/third_party/cutlass-v4.4.2/include
+export NVCC_APPEND_FLAGS="-allow-unsupported-compiler -I$CCCL -I$CUTLASS -I$D/swift-work/mlx-swift/Source/Cmlx/mlx-generated/cuda"
 export PATH="$D/swift-6.3.3/usr/bin:/usr/local/cuda-13.0/bin:$PATH" CUDA_ARCH=sm_121
 export LD_LIBRARY_PATH="$SHIM:$OB/lib:$CUDNN/lib:/usr/local/cuda/lib64"
-FLAGS="-Xcxx -I$CUDNN/include -Xcc -I$CUDNN/include -Xcxx -I$D/third_party/cudnn-frontend-v1.16.0/include -Xcxx -I$D/third_party/cutlass-v4.4.2/include -Xlinker -L$SHIM -Xlinker -L$OB/lib -Xlinker -L$CUDNN/lib \
--Xlinker -rpath -Xlinker $SHIM -Xlinker -rpath -Xlinker $OB/lib -Xlinker -rpath -Xlinker $CUDNN/lib -Xlinker -rpath -Xlinker /usr/local/cuda/lib64"
+FLAGS="-Xcxx -I$D/third_party/cccl-v3.1.3/include -Xcxx -I$OB/include -Xcc -I$OB/include -Xcxx -I$CUDNN/include -Xcc -I$CUDNN/include -Xcxx -I$D/third_party/cudnn-frontend-v1.16.0/include -Xcxx -I$D/third_party/cutlass-v4.4.2/include -Xlinker -L$SHIM -Xlinker -L$OB/lib -Xlinker -L$CUDNN/lib \
+-Xlinker -rpath -Xlinker $SHIM -Xlinker -rpath -Xlinker $OB/lib -Xlinker -rpath -Xlinker $CUDNN/lib -Xlinker -rpath -Xlinker /usr/local/cuda/lib64 -Xlinker -L/usr/local/cuda/lib64 -Xlinker -lcufft"
 echo "== $(date -Is) $(swift --version 2>&1 | head -1)"
 cd "$W/swift-smoke"
 swift build -c release -j 16 $FLAGS

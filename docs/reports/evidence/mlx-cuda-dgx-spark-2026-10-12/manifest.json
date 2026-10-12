@@ -56,6 +56,12 @@
       "uncompressed_bytes": 803,
       "uncompressed_sha256": "a6d2bd30f5fff0588102d69b1283b9ceeb33d037f5a41a19d986bb23ba0abc37"
     },
+    "results/env/qwen35-9b-config-linear-attn.txt.gz": {
+      "bytes": 208,
+      "sha256": "fea6f367f0e35a42d178b0b9a5a2839ad263c4fa43e33cf617468f167709d8a4",
+      "uncompressed_bytes": 602,
+      "uncompressed_sha256": "6df9c72d81df55d55a6f5a56d6467fb0e7e249c1618f7067888ac5781e34f62b"
+    },
     "results/env/sha256-bf16.txt.gz": {
       "bytes": 249,
       "sha256": "2d86a912d144171a05f4d90242d654f14651eef4cba4bd74e5aa72202ab40818",
@@ -305,8 +311,8 @@
       "sha256": "e1f0fb495ce9cd1cbd913238c1702321cda2c5b35f9ecff5b92bd2bd976bf7ec"
     },
     "scripts/build-mlx-swift.sh": {
-      "bytes": 1547,
-      "sha256": "6745aa4c4426ded64118d0a2731d73d5d15aa3fb0e8e69fcb0a299a2cda28471"
+      "bytes": 2030,
+      "sha256": "b0a0718bfcc46fea649df58965b3d8370b2f2c07f21f7273c4c04947eeb22850"
     },
     "scripts/gdn_cuda.py": {
       "bytes": 10259,
