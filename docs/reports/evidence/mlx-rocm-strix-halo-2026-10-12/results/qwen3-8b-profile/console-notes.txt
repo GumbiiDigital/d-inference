@@ -1,0 +1,37 @@
+# Console outputs captured during the session (copied verbatim from tool output)
+
+## rocprofv3 per-kernel decode cost = (m129 - m1)/128 (computed from run_kernel_trace.csv, not included: 30+ MB)
+GPU kernel ms/token total 26.76
+ 24.741 ms  92.5% calls/tok  253.0  qmv_wide_kernel<bf16,bf16,64,4>
+  0.681 ms   2.5% calls/tok  145.0  rms_norm_kernel
+  0.368 ms   1.4% calls/tok   69.3  copy_v
+  0.217 ms   0.8% calls/tok   36.0  fused sigmoid*mul (silu) compiled kernel
+  0.192 ms   0.7% calls/tok   36.0  kernel_sdpav_1pass
+  0.172 ms   0.6% calls/tok   72.0  binary_vv Add
+  0.135 ms   0.5% calls/tok    1.0  logsumexp_kernel
+  0.122 ms   0.5% calls/tok   72.0  rope_single_1d
+  0.105 ms   0.4% calls/tok   72.0  copy_gg_byval
+Profiled run (m129): "Generation: 129 tokens, 35.136 tokens-per-sec"; last 100 tokens: wall ms/tok 28.59, busy 26.70
+
+## qmv per projection position (last 100 tokens, 36 layers), median us per call; grid X = 4*N
+pos0 N=1024 25.3 us; pos1 N=1024 25.3; pos2 N=4096 65.9; pos3 N=4096 66.1; pos4 N=12288 154.6; pos5 N=12288 150.8; pos6 N=4096(K=12288) 153.5; lm_head 1511.9 us
+
+## qmvbench.py (no profiler, default env)
+k/v      N=  1024 K= 4096     13.2 us   179.4 GB/s  floor     9.9 us
+q/o      N=  4096 K= 4096     70.5 us   133.8 GB/s  floor    39.7 us
+gate/up  N= 12288 K= 4096    162.5 us   174.2 GB/s  floor   119.0 us
+down     N=  4096 K=12288    167.2 us   169.4 GB/s  floor   119.0 us
+lm_head  N=151936 K= 4096   1567.3 us   223.4 GB/s  floor  1470.8 us
+
+## fusebench.py (HSA_ENABLE_INTERRUPT=0)
+q+k+v separate 125.0 us, fused qkv 91.9 us
+gate+up separate 312.0 us, fused 279.5 us
+
+## plain vs profiled, 400 tokens: plain 30.4 / 30.1 tok/s; under rocprofv3 34.3 / 34.3. GPU busy ~100 % in both; gfx clock 2.5-2.7 GHz plain, ~2.4 GHz profiled.
+## perf (main thread, plain run): top = yield_task_fair 6.9 %, __sched_yield 6.0 %, HipEvent::wait 5.0 %, syscalls; i.e. host waits on GPU.
+## top -H: main python thread 99.9 % CPU during decode.
+
+## llama.cpp HIP with HSA_ENABLE_INTERRUPT=0 (step5/hip-nointr.json): pp512 1127.4, tg128 44.9, pp512@d512 1079.0, tg128@d512 43.9
+
+## qmmcheck.py vs exact float32 reference: wrong cases only for float32 inputs (51 of 64); bf16 and f16: 0 wrong.
+## check_fuse.py (bf16): "check_fuse: ok". With float32 the mutation assert failed because GPU returned zeros.

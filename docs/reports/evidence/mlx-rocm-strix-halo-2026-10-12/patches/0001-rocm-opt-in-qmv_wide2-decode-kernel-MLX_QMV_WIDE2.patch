@@ -1,0 +1,189 @@
+From 2fbc9a9e36d4f6f0d60a67514b183a7c35498480 Mon Sep 17 00:00:00 2001
+Subject: [PATCH 1/2] rocm: opt-in qmv_wide2 decode kernel (MLX_QMV_WIDE2)
+
+---
+ mlx/backend/rocm/quantized/qmm.hip | 151 +++++++++++++++++++++++++++--
+ 1 file changed, 143 insertions(+), 8 deletions(-)
+
+diff --git a/mlx/backend/rocm/quantized/qmm.hip b/mlx/backend/rocm/quantized/qmm.hip
+index a725ee7a..6c2dfaa6 100644
+--- a/mlx/backend/rocm/quantized/qmm.hip
++++ b/mlx/backend/rocm/quantized/qmm.hip
+@@ -3144,6 +3144,117 @@ __global__ void __launch_bounds__(1024) qmv_wide_kernel(
+     out[static_cast<size_t>(row) * N + col] = static_cast<T>(acc);
+ }
+ 
++// Opt-in wide2 QMV (4-bit affine, decode). Two output columns per warp, vector
++// x loads (uint4 = 8 activations), UNROLL=4 K-loop for memory-level parallelism.
++// Enable with MLX_QMV_WIDE2; same launch preconditions as qmv_wide (K % 32 == 0).
++template <typename T, typename ScaleT, int GROUP_SIZE>
++__global__ void __launch_bounds__(1024) qmv_wide2_kernel(
++    const T* __restrict__ x,
++    const uint8_t* __restrict__ w,
++    const ScaleT* __restrict__ scales,
++    const ScaleT* __restrict__ biases,
++    T* __restrict__ out,
++    int M,
++    int N,
++    int K,
++    bool has_bias) {
++  constexpr int WPER = 32;
++  constexpr int UNROLL = 4;
++  constexpr int STRIDE = 32 * WPER;
++  constexpr int SUPER = STRIDE * UNROLL;
++  int lane = threadIdx.x;
++  int warp_y = threadIdx.y;
++  int col0 = blockIdx.x * (blockDim.y * 2) + warp_y * 2;
++  int col1 = col0 + 1;
++  int row = blockIdx.y;
++  if (row >= M || col0 >= N)
++    return;
++  const bool col1_ok = col1 < N;
++  int ng = (K + GROUP_SIZE - 1) / GROUP_SIZE;
++  int row_bytes = (K * 4) / 8;
++  const uint8_t* wr0 = w + static_cast<size_t>(col0) * row_bytes;
++  const uint8_t* wr1 = col1_ok ? (w + static_cast<size_t>(col1) * row_bytes) : nullptr;
++  const ScaleT* scr0 = scales + static_cast<size_t>(col0) * ng;
++  const ScaleT* scr1 = col1_ok ? (scales + static_cast<size_t>(col1) * ng) : nullptr;
++  const ScaleT* bcr0 = has_bias ? (biases + static_cast<size_t>(col0) * ng) : nullptr;
++  const ScaleT* bcr1 =
++      (has_bias && col1_ok) ? (biases + static_cast<size_t>(col1) * ng) : nullptr;
++  const T* xr = x + static_cast<size_t>(row) * K;
++  float acc0 = 0.0f;
++  float acc1 = 0.0f;
++
++  for (int k0 = lane * WPER; k0 < K; k0 += SUPER) {
++    uint4 wv0[UNROLL];
++    uint4 wv1[UNROLL];
++    float s0v[UNROLL], b0v[UNROLL], s1v[UNROLL], b1v[UNROLL];
++    int ku[UNROLL];
++#pragma unroll
++    for (int u = 0; u < UNROLL; ++u) {
++      int k = k0 + u * STRIDE;
++      ku[u] = k;
++      if (k >= K) {
++        wv0[u] = {};
++        wv1[u] = {};
++        s0v[u] = b0v[u] = s1v[u] = b1v[u] = 0.0f;
++        continue;
++      }
++      int g = k / GROUP_SIZE;
++      s0v[u] = load_scale_value<ScaleT, GROUP_SIZE, true>(scr0[g]);
++      b0v[u] = has_bias ? static_cast<float>(bcr0[g]) : 0.0f;
++      wv0[u] = *reinterpret_cast<const uint4*>(&wr0[(k * 4) / 8]);
++      if (col1_ok) {
++        s1v[u] = load_scale_value<ScaleT, GROUP_SIZE, true>(scr1[g]);
++        b1v[u] = has_bias ? static_cast<float>(bcr1[g]) : 0.0f;
++        wv1[u] = *reinterpret_cast<const uint4*>(&wr1[(k * 4) / 8]);
++      } else {
++        s1v[u] = b1v[u] = 0.0f;
++        wv1[u] = {};
++      }
++    }
++#pragma unroll
++    for (int u = 0; u < UNROLL; ++u) {
++      int k = ku[u];
++      if (k >= K)
++        continue;
++      const uint32_t* wp0 = reinterpret_cast<const uint32_t*>(&wv0[u]);
++      const uint32_t* wp1 = reinterpret_cast<const uint32_t*>(&wv1[u]);
++      float la0 = 0.0f, la1 = 0.0f, lx = 0.0f;
++#pragma unroll
++      for (int q = 0; q < 4; ++q) {
++        uint32_t wd0 = wp0[q];
++        uint32_t wd1 = wp1[q];
++        int kb = k + q * 8;
++        uint4 xvec = *reinterpret_cast<const uint4*>(&xr[kb]);
++        const T* x8 = reinterpret_cast<const T*>(&xvec);
++#pragma unroll
++        for (int j = 0; j < 8; ++j) {
++          float xv = static_cast<float>(x8[j]);
++          la0 += xv * static_cast<float>((wd0 >> (4 * j)) & 0xF);
++          if (col1_ok)
++            la1 += xv * static_cast<float>((wd1 >> (4 * j)) & 0xF);
++          if (has_bias)
++            lx += xv;
++        }
++      }
++      acc0 += s0v[u] * la0 + b0v[u] * lx;
++      if (col1_ok)
++        acc1 += s1v[u] * la1 + b1v[u] * lx;
++    }
++  }
++
++#pragma unroll
++  for (int o = 16; o > 0; o >>= 1) {
++    acc0 += __shfl_down(acc0, o);
++    if (col1_ok)
++      acc1 += __shfl_down(acc1, o);
++  }
++  if (lane == 0) {
++    out[static_cast<size_t>(row) * N + col0] = static_cast<T>(acc0);
++    if (col1_ok)
++      out[static_cast<size_t>(row) * N + col1] = static_cast<T>(acc1);
++  }
++}
++
+ // Dense fused WMMA quantized GEMM (q4/q6/q8 affine), graph-addable.
+ //   out[M,N] = x[M,K] @ dequant(w)[K,N], w stored [N, K*BITS/32] packed (transpose).
+ // Unpacks packed weights in-kernel (128-bit loads, bit-level) — no bf16 weight
+@@ -3752,8 +3863,31 @@ void QuantizedMatmul::eval_gpu(const std::vector<array>& inputs, array& out) {
+     if (host_warp != 32) {
+       // fall through to tiled / warp-shared
+     } else {
++    static bool use_wide2_qmv = (std::getenv("MLX_QMV_WIDE2") != nullptr);
+     dim3 wblock(32, wcols);
+-    dim3 wgrid((N + wcols - 1) / wcols, M);
++    if (use_wide2_qmv && bits_ == 4 &&
++        reinterpret_cast<uintptr_t>(x_ptr) % 16 == 0) {  // uint4 x loads
++      dim3 w2grid((N + 2 * wcols - 1) / (2 * wcols), M);
++#define LAUNCH_QMV_WIDE2(TT, ST, GS)                                         \
++  enc.add_kernel_node(                                                       \
++      &rocm::qmv_wide2_kernel<TT, ST, GS>, w2grid, wblock, 0u,              \
++      (const TT*)x_ptr, w_ptr, (const ST*)scales_ptr, (const ST*)biases_ptr, \
++      (TT*)out_ptr, M, N, K, has_bias)
++#define LAUNCH_QMV_WIDE2_GS(TT, ST)                                          \
++  do {                                                                       \
++    if (group_size_ == 32) { LAUNCH_QMV_WIDE2(TT, ST, 32); }                \
++    else if (group_size_ == 64) { LAUNCH_QMV_WIDE2(TT, ST, 64); }             \
++    else { LAUNCH_QMV_WIDE2(TT, ST, 128); }                                   \
++  } while (0)
++      if (x.dtype() == bfloat16) {
++        LAUNCH_QMV_WIDE2_GS(hip_bfloat16, hip_bfloat16);
++      } else {
++        LAUNCH_QMV_WIDE2_GS(__half, __half);
++      }
++#undef LAUNCH_QMV_WIDE2_GS
++#undef LAUNCH_QMV_WIDE2
++    } else {
++      dim3 wgrid((N + wcols - 1) / wcols, M);
+ #define LAUNCH_QMV_WIDE(TT, ST, GS, BV)                                      \
+   enc.add_kernel_node(                                                       \
+       &rocm::qmv_wide_kernel<TT, ST, GS, BV>, wgrid, wblock, 0u,             \
+@@ -3765,15 +3899,16 @@ void QuantizedMatmul::eval_gpu(const std::vector<array>& inputs, array& out) {
+     else if (group_size_ == 64) { LAUNCH_QMV_WIDE(TT, ST, 64, BV); }        \
+     else { LAUNCH_QMV_WIDE(TT, ST, 128, BV); }                              \
+   } while (0)
+-    if (x.dtype() == bfloat16) {
+-      if (bits_ == 4) { LAUNCH_QMV_WIDE_GS(hip_bfloat16, hip_bfloat16, 4); }
+-      else { LAUNCH_QMV_WIDE_GS(hip_bfloat16, hip_bfloat16, 8); }
+-    } else {
+-      if (bits_ == 4) { LAUNCH_QMV_WIDE_GS(__half, __half, 4); }
+-      else { LAUNCH_QMV_WIDE_GS(__half, __half, 8); }
+-    }
++      if (x.dtype() == bfloat16) {
++        if (bits_ == 4) { LAUNCH_QMV_WIDE_GS(hip_bfloat16, hip_bfloat16, 4); }
++        else { LAUNCH_QMV_WIDE_GS(hip_bfloat16, hip_bfloat16, 8); }
++      } else {
++        if (bits_ == 4) { LAUNCH_QMV_WIDE_GS(__half, __half, 4); }
++        else { LAUNCH_QMV_WIDE_GS(__half, __half, 8); }
++      }
+ #undef LAUNCH_QMV_WIDE_GS
+ #undef LAUNCH_QMV_WIDE
++    }
+     return;
+     } // host_warp == 32
+   }
+-- 
+2.55.0
+

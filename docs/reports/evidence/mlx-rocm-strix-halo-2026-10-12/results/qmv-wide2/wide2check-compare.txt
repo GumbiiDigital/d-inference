@@ -1,0 +1,7 @@
+[mlx-rocm] bound HIP device 0: gfx1151 (AMD Radeon 8060S Graphics) cus=20 warp=32 lds=64KB
+11 bit-identical: 126 / 126
+12 bit-identical: 126 / 126
+14 bit-identical: 126 / 126
+21 bit-identical: 126 / 126
+22 bit-identical: 126 / 126
+24 bit-identical: 126 / 126

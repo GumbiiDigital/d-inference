@@ -1,0 +1,55 @@
+[mlx-rocm] bound HIP device 0: gfx1151 (AMD Radeon 8060S Graphics) cus=20 warp=32 lds=64KB
+[mlx-rocm] gfx1151 native_wmma=1 cus=20 warp=32 low_cu=0 host_WARP_SIZE=32
+[hipBLASLt caps] device 0 (gfx1151): bf16=1 fp8_e4m3=0 fp8_e5m2=0 int8=1
+WRONG mlx.core.float32 M=1 K=256 N=128 rel_err=1.471 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=2 K=256 N=128 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=True
+WRONG mlx.core.float32 M=3 K=256 N=128 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=True
+WRONG mlx.core.float32 M=4 K=256 N=128 rel_err=1.104 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=8 K=256 N=128 rel_err=1.504 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=16 K=256 N=128 rel_err=2.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=32 K=256 N=128 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=1 K=256 N=4096 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=2 K=256 N=4096 rel_err=1.218 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=3 K=256 N=4096 rel_err=1.945 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=4 K=256 N=4096 rel_err=1.800 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=8 K=256 N=4096 rel_err=1.950 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=16 K=256 N=4096 rel_err=1.872 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=1 K=512 N=128 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=2 K=512 N=128 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=3 K=512 N=128 rel_err=0.984 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=4 K=512 N=128 rel_err=1.597 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=8 K=512 N=128 rel_err=2.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=16 K=512 N=128 rel_err=1.023 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=32 K=512 N=128 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=1 K=512 N=4096 rel_err=1.440 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=2 K=512 N=4096 rel_err=1.479 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=3 K=512 N=4096 rel_err=1.280 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=4 K=512 N=4096 rel_err=1.004 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=8 K=512 N=4096 rel_err=2.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=16 K=512 N=4096 rel_err=2.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=1 K=1024 N=128 rel_err=1.835 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=2 K=1024 N=128 rel_err=1.089 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=3 K=1024 N=128 rel_err=1.481 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=4 K=1024 N=128 rel_err=1.053 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=8 K=1024 N=128 rel_err=1.003 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=16 K=1024 N=128 rel_err=2.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=32 K=1024 N=128 rel_err=1.220 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=1 K=1024 N=4096 rel_err=1.584 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=2 K=1024 N=4096 rel_err=1.294 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=3 K=1024 N=4096 rel_err=1.143 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=4 K=1024 N=4096 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=8 K=1024 N=4096 rel_err=0.996 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=16 K=1024 N=4096 rel_err=1.907 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=1 K=4096 N=128 rel_err=1.545 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=2 K=4096 N=128 rel_err=1.090 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=3 K=4096 N=128 rel_err=1.052 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=4 K=4096 N=128 rel_err=1.086 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=8 K=4096 N=128 rel_err=0.996 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=16 K=4096 N=128 rel_err=0.999 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=1 K=4096 N=4096 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=2 K=4096 N=4096 rel_err=1.307 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=3 K=4096 N=4096 rel_err=1.767 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=4 K=4096 N=4096 rel_err=1.173 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=8 K=4096 N=4096 rel_err=2.000 cpu_rel_err=0.000 gpu_allzero=False
+WRONG mlx.core.float32 M=16 K=4096 N=4096 rel_err=1.000 cpu_rel_err=0.000 gpu_allzero=False
+wrong cases: 51

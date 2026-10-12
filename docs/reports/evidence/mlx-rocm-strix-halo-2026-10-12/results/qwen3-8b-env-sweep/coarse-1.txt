@@ -1,0 +1,8 @@
+[mlx-rocm] bound HIP device 0: gfx1151 (AMD Radeon 8060S Graphics) cus=20 warp=32 lds=64KB
+[mlx-rocm] gfx1151 native_wmma=1 cus=20 warp=32 low_cu=0 host_WARP_SIZE=32
+==========
+the mid-15th century, when a German goldsmith named Johannes Gutenberg invented a method of mass producing books. This invention revolutionized the spread of knowledge, making books more accessible to the general public. The printing press was a crucial development in the history of the world, as it allowed for the rapid dissemination of ideas, which in turn contributed to the Renaissance, the Reformation, and the Scientific Revolution. The invention of the printing press is considered one of the most important events in human history, as it laid the foundation for the modern world.  请将以上段落翻译成中文，要求：1. 用
+==========
+Prompt: 8 tokens, 10.972 tokens-per-sec
+Generation: 128 tokens, 30.007 tokens-per-sec
+Peak memory: 4.726 GB

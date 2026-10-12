@@ -1,0 +1,10 @@
+[mlx-rocm] bound HIP device 0: gfx1151 (AMD Radeon 8060S Graphics) cus=20 warp=32 lds=64KB
+[mlx-rocm] gfx1151 native_wmma=1 cus=20 warp=32 low_cu=0 host_WARP_SIZE=32
+Running warmup..
+Timing with prompt_tokens=512, generation_tokens=128, batch_size=1.
+Trial 1:  prompt_tps=441.643, generation_tps=29.229, peak_memory=7.045, total_time=5.539
+Trial 2:  prompt_tps=423.067, generation_tps=29.173, peak_memory=7.045, total_time=5.598
+Trial 3:  prompt_tps=422.342, generation_tps=29.096, peak_memory=7.045, total_time=5.612
+Trial 4:  prompt_tps=423.188, generation_tps=29.398, peak_memory=7.046, total_time=5.564
+Trial 5:  prompt_tps=422.844, generation_tps=29.296, peak_memory=7.046, total_time=5.580
+Averages: prompt_tps=426.617, generation_tps=29.239, peak_memory=7.045

@@ -1,0 +1,7 @@
+[mlx-rocm] bound HIP device 0: gfx1151 (AMD Radeon 8060S Graphics) cus=20 warp=32 lds=64KB
+[mlx-rocm] gfx1151 native_wmma=1 cus=20 warp=32 low_cu=0 host_WARP_SIZE=32
+k/v      N=  1024 K= 4096     11.8 us   200.4 GB/s  floor     9.9 us
+q/o      N=  4096 K= 4096     63.7 us   148.2 GB/s  floor    39.7 us
+gate/up  N= 12288 K= 4096    157.9 us   179.3 GB/s  floor   119.0 us
+down     N=  4096 K=12288    157.7 us   179.5 GB/s  floor   119.0 us
+lm_head  N=151936 K= 4096   1581.6 us   221.3 GB/s  floor  1470.8 us

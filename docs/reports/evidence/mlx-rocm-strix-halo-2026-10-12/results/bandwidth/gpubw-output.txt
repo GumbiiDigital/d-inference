@@ -1,0 +1,2 @@
+gpu_read_best_GBps 238.4
+gpu_copy_best_GBps 215.9

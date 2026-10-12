@@ -1,0 +1,33 @@
+GPU kernel ms/token total 26.76
+  24.741 ms  92.5% calls/tok  253.0  qmv_wide_kernel<bf16,bf16,64,4>
+   0.681 ms   2.5% calls/tok  145.0  void mlx::core::rocm::rms_norm_kernel<bf16, 256, 4>(bf16 const*, bf16...
+   0.368 ms   1.4% calls/tok   69.3  void mlx::core::rocm::copy_v<bf16, bf16, unsigned int, 4>(bf16 const*...
+   0.217 ms   0.8% calls/tok   36.0  void mlx::core::rocm::CV2ISigmoidADV2IBroadcastACEV2IBroadcastCAFV2IM...
+   0.192 ms   0.7% calls/tok   36.0  void mlx::core::rocm::kernel_sdpav_1pass<bf16, false, 128>(bf16 const...
+   0.172 ms   0.6% calls/tok   72.0  void mlx::core::rocm::binary_vv<mlx::core::rocm::Add, bf16, bf16, uns...
+   0.135 ms   0.5% calls/tok    1.0  void mlx::core::rocm::logsumexp_kernel<bf16, float, 256, 4>(bf16 cons...
+   0.122 ms   0.5% calls/tok   72.0  void mlx::core::rocm::rope_single_1d<bf16, false, true>(bf16 const*, ...
+   0.105 ms   0.4% calls/tok   72.0  void mlx::core::rocm::copy_gg_byval<bf16, bf16, long>(bf16 const*, bf...
+   0.012 ms   0.0% calls/tok    1.0  void mlx::core::rocm::arg_reduce_partial<bf16, mlx::core::rocm::ArgMa...
+
+qmv_wide_kernel medians (last 100 decode tokens, 36 layers); N = Grid_Size_X/4
+  pos0 q/k/v: N=  1024  median    25.3 us
+  pos1 q/k/v: N=  1024  median    25.3 us
+  pos2 q/o: N=  4096  median    65.9 us
+  pos3 q/o: N=  4096  median    66.1 us
+  pos4 gate/up: N= 12288  median   154.6 us
+  pos5 gate/up: N= 12288  median   150.8 us
+  pos6 down: N=  4096  median   153.5 us
+  lm_head: N=151936  median  1511.9 us
+
+roofline floor @ 238 GB/s (bytes = N*K/2 + N*K/64*4); pct = floor/median*100
+  pos0: N=  1024 K= 4096  floor    9.91 us  median    25.3 us  floor/median  39.2%
+  pos1: N=  1024 K= 4096  floor    9.91 us  median    25.3 us  floor/median  39.2%
+  pos2: N=  4096 K= 4096  floor   39.65 us  median    65.9 us  floor/median  60.1%
+  pos3: N=  4096 K= 4096  floor   39.65 us  median    66.1 us  floor/median  60.0%
+  pos4: N= 12288 K= 4096  floor  118.96 us  median   154.6 us  floor/median  76.9%
+  pos5: N= 12288 K= 4096  floor  118.96 us  median   150.8 us  floor/median  78.9%
+  pos6: N=  4096 K=12288  floor  118.96 us  median   153.5 us  floor/median  77.5%
+  lm_head: N=151936 K= 4096  floor 1470.84 us  median  1511.9 us  floor/median  97.3%
+
+per-token total floor 17.887 ms; loss above floor (median−floor): small(pos0-3) 3.004 ms, large(pos4-6) 3.674 ms, lm_head 0.041 ms
