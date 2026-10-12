@@ -2,7 +2,7 @@
 
 > Last updated: 2026-10-12
 
-**MLX runs on an AMD Ryzen AI Max+ 395 (Radeon 8060S, gfx1151) through the experimental ROCm backend of PR ml-explore/mlx#2300.** Unmodified mlx-lm 0.32.0 loads Gemma 4 26B A4B 4-bit and Qwen3-8B 4-bit and generates on the GPU. For Gemma 4, GPU greedy output equals the CPU backend of the same build for all 128 tokens of the test prompt. Two GPU runs repeat exactly. **It also equals an Apple M5 Max (MLX Metal) reference for all 128 tokens**, free-running and teacher-forced; the one exact tie (step 81) resolves to the same token on both. Speed is the open problem. On the same box, MLX-ROCm decodes Gemma 4 at **41.5 tok/s against 57.1 (llama.cpp HIP) and 59.7 (Vulkan)**, about **−27 %** against HIP; prefill is about **−81 %**. Two measured changes raise Qwen3-8B decode from 29.3 tok/s to an extrapolated ~36.8. Limits: one box, one day, one prompt per token check, different benchmark tools and different weight files for MLX and llama.cpp. Darkbloom's Swift provider does not build on Linux today.
+**MLX runs on an AMD Ryzen AI Max+ 395 (Radeon 8060S, gfx1151) through the experimental ROCm backend of PR ml-explore/mlx#2300.** Unmodified mlx-lm 0.32.0 loads Gemma 4 26B A4B 4-bit and Qwen3-8B 4-bit and generates on the GPU. For Gemma 4, GPU greedy output equals the CPU backend of the same build for all 128 tokens of the test prompt. Two GPU runs repeat exactly. **It also equals an Apple M5 Max (MLX Metal) reference for all 128 tokens**, free-running and teacher-forced; the one exact tie (step 81) resolves to the same token on both. Speed is the open problem. On the same box, MLX-ROCm reaches **70–73 % of llama.cpp decode on Gemma 4** (41.5 tok/s against 59.7 on Vulkan and 57.1 on HIP) **and about 19 % of its prefill**. On Qwen3-8B it reaches **66 % of llama.cpp HIP decode and 37 % of its prefill**; with `HSA_ENABLE_INTERRUPT=0` on both engines, decode reaches **78 %**. Limits: one box, one day, one prompt per token check, different benchmark tools and different weight files for MLX and llama.cpp. Darkbloom's Swift provider does not build on Linux today.
 
 ## Results
 
@@ -33,7 +33,15 @@ Single stream, prompt 512, decode 128. Values are means of 2 rounds unless marke
 
 † one round of 5 repetitions.
 
-Decode at matched depth: Gemma 4 −27 % against HIP and −30 % against Vulkan; Qwen3-8B −34 % against HIP Q4_0. Prefill: −81 % for Gemma 4 and −63 % for Qwen3-8B, both against HIP. Qwen3-0.6B decodes at 215 tok/s on MLX against 333 (Vulkan) and 285 (HIP).
+MLX-ROCm as a share of llama.cpp on the same model (decode at depth 512, prefill pp512 at depth 0):
+
+| Model | Decode vs HIP | Decode vs Vulkan | Prefill vs HIP | Prefill vs Vulkan |
+|---|---:|---:|---:|---:|
+| Gemma 4 26B A4B | 73 % | 70 % | 19 % | 18 % |
+| Qwen3-8B (Q4_0) | 66 % | 67 % | 37 % | 38 % |
+| Qwen3-8B, `HSA_ENABLE_INTERRUPT=0` on both engines | 78 % | — | — | — |
+
+The last row compares 34.2 tok/s (MLX) with 43.9 tok/s (llama.cpp HIP at depth 512), both with the switch set. Qwen3-0.6B decodes at 215 tok/s on MLX against 333 (Vulkan) and 285 (HIP).
 
 ### Decode Profile (Qwen3-8B)
 
@@ -58,8 +66,7 @@ The qmv floor is 17.9 ms per token, so the loss is 6.8 ms. The small k/v and q/o
 | Change | Kind | Decode | Tokens |
 |---|---|---|---|
 | `HSA_ENABLE_INTERRUPT=0` | environment only | 29.3 → 34.2 tok/s (+16.7 %), p512/g128 | identical (greedy 128) |
-| Fused q+k+v and gate+up projections | model-level prototype | 35.3 → 38.0 tok/s (+7.7 %), 8-token prompt, with the line above | identical |
-| Both, at depth 512 | extrapolation 34.2 × 38.0 / 35.3 | ~36.8 tok/s | — |
+| Fused q+k+v and gate+up projections (experiment) | model-level prototype, `run_fuse.py` | 35.3 → 38.0 tok/s (+7.7 %), 8-token prompt, with the line above | identical |
 | `qmv_wide2` kernel variants | MLX fork patch | no gain | bit-identical on 126 shapes |
 
 The interrupt switch does not change llama.cpp HIP (44.9 tok/s with and without). On Gemma 4 it adds about 2 % (41.5 → 42.2). `MLX_EVENT_BLOCKING=1` is 9 % slower. `MLX_QMV_IDOT`, `MLX_ROCM_FINEGRAINED=0` and `MLX_GRAPH_DECODE=0` change nothing measurable. Fusion helps because each `qmv_wide_kernel` launch costs more than its memory traffic: three q/k/v launches take 125 µs, one fused launch 92 µs. The cause of that cost is not proven. The `qmv_wide2` variants add vector x loads, 1–2 output columns per warp and 1–4 loads in flight. With one column per warp they stay within −3 % to +10 % of the existing kernel per call; with two columns they are 16–90 % slower.
@@ -140,7 +147,7 @@ Key result files (paths relative to the evidence folder):
 
 - One box, one day, one prompt per token check, one MLX fork commit (plus the patched `4e4be447` build for the `qmv_wide2` rows).
 - MLX and llama.cpp use different benchmark tools and different weight files; ratios are approximate.
-- The fused-projection gain uses an 8-token prompt. The ~36.8 tok/s figure is an extrapolation, not a measurement.
+- The fused-projection result is an experiment with a different script and an 8-token prompt; it is not part of the comparison with llama.cpp.
 - The M5 reference is a separate run on another machine (MLX 0.32.3, Metal).
 - The cause of the per-launch cost in `qmv_wide_kernel` is not proven. Prefill was measured but not profiled.
 - The float32 sweep covers 64 shapes per dtype at group 64, 4-bit only.
