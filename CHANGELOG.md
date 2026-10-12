@@ -3,6 +3,13 @@
 Unreleased changes live in [`changelog.d/`](changelog.d/README.md). Ordinary
 pull requests add one fragment; release preparation alone updates this file.
 
+## v0.9.20 — candidate (unpublished)
+
+- Raise the default SSD cache write budget from 750 GB to 4 TB (4,000 decimal GB)
+  per rolling day. Saved limits and environment overrides continue to take precedence.
+- Prepare the provider release identity for 0.9.20. Publication remains pending;
+  the unreleased entries and fragments below have not been marked as shipped.
+
 ## Unreleased — responsive provider App Attest handling
 
 - Process App Attest challenges, received authorization updates and connection invalidation while inference or model work is suspended. Keep model-work ordering and existing proof, expiry, key-reuse and revocation checks.
