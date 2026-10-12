@@ -2702,7 +2702,123 @@ selected controls, not the full test suite. Leave `MLX_ENABLE_TF32` unset for
 production-default live cache tests and model benchmarks; record any explicit
 numerical override as a separate experiment.
 
+#### Native inference checkpoint storage qualification
+
+Live attention and durable checkpoint precision are independent. Build the
+provider and nested test products and stage their source-matched Metal libraries
+before using `--skip-build`; do not overlap these GPU suites or a real-model run
+with other inference. The
+[precision architecture](../architecture/kv-cache-quantization.md) and
+[SSD format reference](../reference/ssd-kv-cache.md#complete-checkpoint-payload)
+define the contracts under test.
+
+Provider policy/configuration/diagnostic checks need no model download:
+
+```bash
+(
+  cd provider-swift
+  swift test --skip-build --filter 'KVQuantizationConfigTests|EngineV2KVQuantizationPolicyTests|NativeCheckpointQuantizationTests|BenchmarkKVQuantizationOptionsTests|KVCheckpointPostureTests|ModelCheckpointStorageSpecificationTests'
+)
+```
+
+The SDK's row, paged/contiguous, recurrent and window tests exercise native
+restoration, unsupported/profile refusal, fragmentation and actual ownership:
+
+```bash
+(
+  cd libs/mlx-swift-lm
+  ../../scripts/run-nested-suite.sh \
+    'NativeCheckpointRowCodecTests|NativeQuantizedPagedCheckpointTests|NativeQuantizedContiguousCheckpointTests|Qwen35NativeQuantizedCheckpointTests|HistoricalWindowCheckpointEngineTests.testContiguous' \
+    --no-parallel
+  DARKBLOOM_TEST_NATIVE_COMPLETE_PREFIX=1 ../../scripts/run-nested-suite.sh \
+    CBv2NativeCompleteCheckpointTransferTests.testLossyNativePartialImportKeepsChargeUntilRealCompletion \
+    --no-parallel
+)
+```
+
+These are CPU/GPU regressions, not whole-model quality or performance evidence.
+Keep the existing live-packed suites and exact-native assertions; do not loosen
+their tolerances or equality requirements to pass lossy checkpoint tests.
+
+For real-model comparisons, `ModelCheckpointStorageLiveTests` uses the production
+factory, isolated encrypted stores and public fixed-date prompts. Its companion
+[runner and complete input schema](../../reports/kv-checkpoint-storage-2026-10-09/README.md)
+are tooling, not a measured report. Inspect a run before launching it:
+
+```bash
+python3 -B reports/kv-checkpoint-storage-2026-10-09/checkpoint_storage.py \
+  --spec /absolute/model-spec.json --output-dir /absolute/existing-parent/new-run \
+  --dry-run
+```
+
+Remove `--dry-run` only after building and reserving the GPU. The runner never
+builds or downloads; it selects native-live/native-checkpoint and
+native-live/balanced-checkpoint arms, with optional `--include-balanced-live`
+for the old live-packed path. Run distinct supported `kvBackend` specifications
+for paged and contiguous; `auto` proves only the actual backend reported. A
+requested profile that resolves to another profile is not a passing treatment.
+
+Read the results as separate observations:
+
+- Reports retain requested and effective live/checkpoint precision, actual
+  layout and binary/metallib/model identities. Same-profile repeated original
+  donor restores and restart continuations have equality checks; native-cold
+  versus lossy-restored output equality is an observation, not an acceptance
+  condition or a quality guarantee. Re-encoding restored rows is not generally
+  byte-exact across cycles.
+- `cold_fork` is cache-disabled full prefill, not cold model loading;
+  `warm_full_prefill` is hot-model full prefill, not an in-memory prefix hit.
+  Donor writes, SSD reads, tenant refusal, post-output cancellation and recovery
+  remain separate roles with real read/write and restored-token checks.
+- Default ephemeral-key runs do not prove cross-process persistence. Persistent
+  phases require an explicitly selected isolated key namespace, a signed runner
+  with the matching access-group entitlement, and a completed donor report from
+  a different process. `--exercise-read-refusal` additionally tests refusal and
+  subsequent recovery. No production cache roots or keys are used.
+- `memoryAtFirstOutput` records actual queue-owned `backendBytesInUse` and
+  `backendBytesReserved` separately from potentially lagging capacity gauges.
+  This is native serving state after restore and suffix work, not peak process
+  RAM or a disk compression ratio. TTFT precedes the sample; generation TPS
+  includes its sampling cost in each arm and is not saturated throughput.
+  `supportsOrdinaryDecodeChaining` is a capability; `decodeSteps` and
+  `chainedDecodeSteps` record actual use.
+
+Retain raw reports, refusals, skips and incomplete cells. A successful tiny
+suite, a compression ratio or a runner exit code alone does not qualify real
+encrypted restart, quality, TTFT, TPS or memory. See the
+[legacy exact-native model suite](#model-prefix-latency-and-throughput-qualification-live)
+for the separate exact replay controls.
+
 #### Ordinary teacher-forced score diagnostics
+
+For live attention-precision policy and CLI scope checks:
+
+```bash
+cd provider-swift
+swift test --filter 'EngineV2KVQuantizationPolicy|EngineV2DiffusionPrefixPrecision|BenchmarkRuntimeGeneration|RuntimeGenerationBenchmark'
+```
+
+Use the production session for free-generation quality comparisons:
+
+```bash
+darkbloom benchmark --model "$MODEL_ID" --runtime-generation --kv-backend paged \
+  --kv-quantization native --runtime-prompt-file "$PUBLIC_PROMPT_FILE" \
+  --runtime-prompt-date 2026-10-09 --max-tokens 4096 > "$NATIVE_REPORT"
+darkbloom benchmark --model "$MODEL_ID" --runtime-generation --kv-backend paged \
+  --kv-quantization balanced --runtime-prompt-file "$PUBLIC_PROMPT_FILE" \
+  --runtime-prompt-date 2026-10-09 --max-tokens 4096 > "$PACKED_REPORT"
+```
+
+Keep the artifact and prompt/date fixed. These are live-precision comparisons,
+not checkpoint-storage comparisons: runtime generation keeps prefix caches
+off. The reports record actual resolved
+precision/backend, generated IDs and rendered text, finish reason, runtime
+identity, timing and memory. Target-only is an explicit diagnostic control;
+repeat with `--runtime-mtp` to measure the configured assistant. A `length`
+finish or fluent text is not a correctness result. Ordinary scalar
+`MLX.generate` benchmarks do not exercise the production compressed cache.
+MiMo is excluded from this new mode and retains its native owned benchmark.
+
 
 Build and stage the source-matched metallib for both test products as above.
 From the repository root, run the numerical/engine controls and the provider
@@ -3058,6 +3174,15 @@ work, unknown dispatches and dropped records reject the measured interval.
 Component rows and sequence width remain separate axes. An observed full-width
 call proves neither constant width for the whole request nor kernel launch
 geometry; the existing concurrency, lifecycle and output gates still apply.
+The wrapper's `scripts/benchmarks/radix_forward_shapes.py` validates the current
+SDK's optional bounded step/token timing fields alongside actual-call counts.
+It rejects private or unknown fields, malformed/unbounded/nonmonotonic timing
+receipts and regressing/drop counters. Before/after observations must retain a
+coherent append-only timing prefix; existing scope, completion, delta and actual
+width checks remain required. The scalar C7 regression fixture is in
+`scripts/benchmarks/fixtures/native-cache-forward-shapes-with-timings.json`.
+Run `python3 -m unittest discover -s scripts/benchmarks -p test_radix_forward_shapes.py`.
+
 The native `CBv2ForwardShapeEngineTests` exercise packed/split target dispatch,
 discarded chained work and refusal boundaries with storage-bearing cache rows
 and actual KV progression. Run these alongside the scalar, compiled-expert and
@@ -3562,13 +3687,46 @@ DARKBLOOM_TESTBED_EXPECT_KV_BACKEND=paged \
 go test ./e2e/ -count=1 -v -timeout 25m -p=1 \
   -run 'TestIntegration|TestProfile' -skip '^TestIntegrationExactCacheRouting$'
 
-# Default posture (no TOML written; .auto resolves contiguous as of v0.8.1):
-DARKBLOOM_TESTBED_EXPECT_KV_BACKEND=contiguous \
+# Default posture (no KV overrides; assert the actual automatic backend policy):
+DARKBLOOM_TESTBED_EXPECT_KV_BACKEND=auto \
 go test ./e2e/ -count=1 -v -timeout 10m -p=1 -run '^TestIntegration_(NonStreaming|Streaming)Inference$'
 
 make e2e-integration     # go test ./e2e/... -run TestIntegration -v   (no posture pins)
 make e2e-benchmark       # go test ./e2e/... -run TestBenchmark -v
 ```
+
+The default lane leaves backend, both precision controls and concurrency unset
+in the testbed config; only persistent updater/watchdog services are disabled.
+Its automatic-policy assertion still requires each advertised model to report
+a concrete usable backend. Native auto may resolve paged or contiguous; the
+explicit paged lanes continue to require paged without accepting fallback.
+Native/default automatic checks also require resolved `kv_quantization=native`
+in fresh daemon state bound to the fixture account, tracked provider process and
+exact model. Backend selection alone is not precision evidence.
+Explicit `contiguous` test controls
+also write `engine_v2_kv_quantization = "native"`; paged and automatic controls
+retain the provider's live precision default. The default smoke refuses
+inherited live and checkpoint precision overrides so it tests actual defaults.
+
+Automatic benchmark prewarm derives expectations from each provider's registered
+`model_type` and the inherited KV precision. MiMo stays native/contiguous before
+precision parsing; balanced and k8 controls require paged storage for other
+models. Native auto must report a concrete usable backend and records its
+actual fallback. Explicit requested backends and expected-backend overrides
+retain exact assertions. Both public precision environment keys are forwarded
+independently in the provider launch specification so local and owned-host
+processes use the same treatment. Empty live precision means native auto, not
+balanced. An explicitly resolved contiguous test control overrides an
+ambient precision value with `native`, matching its TOML pin; paged and auto
+controls preserve the supplied live precision value. Checkpoint precision does
+not determine the live-backend expectation. Warmup still requires idle loaded
+slots, positive token budgets and no pending load; expected targets must remain
+resident before measurement.
+Gate G2 pins both backend arms and secondary probes to native live and native
+checkpoint precision, preserving its backend-isolation/token-exactness contract
+and independent dtype controls. The exact-cache routing lane also explicitly
+pins both controls to native; the separate lossy suite does not weaken its
+old replay assertions.
 
 #### E2E coverage in CI
 
@@ -3629,7 +3787,7 @@ binary that already has `mlx.metallib` beside it.
 | `TESTBED_MODEL_ID` | `e2e/testbed/suite.go` | Per-suite model override |
 | `DARKBLOOM_TESTBED_KV_BACKEND` | `e2e/testbed/config.go` (`ResolveKVBackend`) | `auto` / `paged` / `contiguous` written to the provider TOML as `engine_v2_kv_backend`; unset = provider default |
 | `DARKBLOOM_TESTBED_MAX_CONCURRENT` | `e2e/testbed/config.go` (`ResolveMaxConcurrent`) | `engine_v2_max_concurrent`; unset = the provider default ([`../provider/cli-reference.md`](../provider/cli-reference.md#providertoml-keys-read-by-the-cli)); malformed value is a hard error |
-| `DARKBLOOM_TESTBED_EXPECT_KV_BACKEND` | `e2e/testbed/kv_expectation.go` | Pre-warm every slot and fail unless the heartbeat's `kv_backend` equals this |
+| `DARKBLOOM_TESTBED_EXPECT_KV_BACKEND` | `e2e/testbed/kv_expectation.go` | `paged` / `contiguous` require that concrete heartbeat backend; `auto` verifies model-aware automatic policy and usable slots |
 | `DARKBLOOM_CBV2_PAGED_KV` | `e2e/testbed/config.go` | Provider fleet kill switch; CI refuses to run the paged gate when it is set |
 | `DARKBLOOM_PROMPT_SIDECAR_BINARY` | `e2e/exact_cache_routing_test.go` | Path to a built `promptsidecar` for exact-cache routing |
 | `DARKBLOOM_EXACT_CACHE_TEST_MODEL` | `e2e/exact_cache_routing_test.go` | Override the exact-cache fixture (`mlx-community/gemma-4-e2b-it-4bit`) |
@@ -3809,7 +3967,7 @@ intentional skips for irrelevant PRs, rather than requiring unselected macOS job
 | Workflow | Trigger | Jobs (name → what runs) |
 |---|---|---|
 | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | push, PR | **Release Integrity** — release/script checks and offline provider CI/cache/routing guards · **Docs Lint** — `scripts/docs-check.sh` · **Coordinator Tests** — `scripts/run-coordinator-tests.py --race --coverprofile` over every package except the top-level `e2e` integration package (`coordinator/internal/e2e` and `e2e/testbed/...` run), isolated API/registry shards and runner guards, with `postgres:16` service, `make sqlc-check` + `gofmt` on tracked Go files outside frozen report evidence; job-summary coverage table (statements over `coordinator/...` only, 80% report-only target, no branch counters), merged `coverage.out` and timing evidence kept 14 days · **Coordinator Lint** — `golangci-lint run` (v2.1.6) · **Prompt Sidecar Tests** — cargo fmt/check/clippy/test on Rust 1.88.0, static musl Docker stage, `verify-prompt-sidecar-linux.sh`, then `cargo llvm-cov` (0.9.1) job-summary coverage table (lines, regions and functions over `coordinator/promptsidecar/src`, 80% report-only target, no branch counters) · **Provider Unit Tests** (macOS 12-vcpu) — full debug test build with `--enable-code-coverage`, matched Metal, serial/fresh-process provider tests and installer checks, then a job-summary coverage table (lines, regions and functions over Swift code in `provider-swift/Sources`, with product, CLI, benchmark and total rows, 80% report-only target, no branch counters; the SDK and prompt parity lanes are not counted), full report kept 14 days as the `provider-coverage` artifact · **Provider SDK Tests** (independent macOS 12-vcpu) — full nested test build and all required numerical/SDK selectors through checked wrappers · **Provider Prompt Parity** (independent macOS 12-vcpu) — `verify-prompt-parity.sh`, pinned Swift/Go/Rust vectors and sustained sidecar load proof · **Provider Tests** (Linux aggregate) — enforces the component-routing contract above · **Swift Build + Cache** (push only) — release build of `darkbloom` + `darkbloom-fan-helper` · **Console UI Lint & Build** — Node 22, `npm ci`, lint, vitest, and Next.js build |
-| [`.github/workflows/integration.yml`](../../.github/workflows/integration.yml) | push to `master`/`main`, PR | **E2E Integration Tests** (macOS, 75 min budget): install Postgres 16, `swift build -c debug`, cargo sidecar build, metallib staging, HF snapshot downloads; lanes: paged @ 8 blocking gate (`TestIntegration\|TestProfile` minus exact-cache) → exact-cache routing paged @ 8 (blocking; explicit SSD opt-in and repeat demand) → default-posture smoke (`EXPECT_KV_BACKEND=contiguous`); each lane runs with `-coverpkg` over the production `coordinator/...` packages and `-test.gocoverdir`, then a job-summary row of e2e statement coverage (report-only), lane data kept 14 days as the `coordinator-e2e-coverage` artifact |
+| [`.github/workflows/integration.yml`](../../.github/workflows/integration.yml) | push to `master`/`main`, PR | **E2E Integration Tests** (macOS, 75 min budget): install Postgres 16, `swift build -c debug`, cargo sidecar build, metallib staging, HF snapshot downloads; lanes: paged @ 8 blocking gate (`TestIntegration\|TestProfile` minus exact-cache) → exact-cache routing paged @ 8 (blocking; explicit SSD opt-in, native live/native checkpoint precision and repeat demand) → default-posture smoke (native auto policy and usable concrete slots, no precision override); each lane runs with `-coverpkg` over the production `coordinator/...` packages and `-test.gocoverdir`, then a job-summary row of e2e statement coverage (report-only), lane data kept 14 days as the `coordinator-e2e-coverage` artifact |
 | [`.github/workflows/benchmarks.yml`](../../.github/workflows/benchmarks.yml) | PR, gated by the `benchmarks` environment (manual approval) | **E2E Benchmarks** — `go test ./e2e/ -count=1 -v -timeout 40m -p=1 -run 'TestBenchmark'`, posts `BENCHMARK_MD_PATH` as a PR comment |
 | [`.github/workflows/release-swift.yml`](../../.github/workflows/release-swift.yml) | tag `v*`, manual | Provider release; see [`../operations/provider-release.md`](../operations/provider-release.md) |
 | [`.github/workflows/provider-signing-validation.yml`](../../.github/workflows/provider-signing-validation.yml) | manual only | Build an exact signed source revision, validate Developer ID signing/provisioning/notarization in a separate job, and retain an Actions artifact; no GitHub environment, deployment, release registration or model execution |
@@ -3941,6 +4099,11 @@ runtime metallib, and uses the actual production factory and KV grant. Run it
 alone on an idle owned GPU after `make provider-test` has built and staged the
 test runner. Model hardware and load requirements still apply; the concrete
 Qwen3.8 builds require their normal runtime capabilities.
+This legacy suite requires native live and native checkpoint precision and
+rejects nonnative specifications before loading. Its existing output-hash
+assertions remain exact; use the
+[separate storage suite](#native-inference-checkpoint-storage-qualification)
+for lossy profiles.
 
 Create a JSON specification for the owned artifact, substituting its exact
 catalog hash and absolute paths:
@@ -3955,6 +4118,9 @@ catalog hash and absolute paths:
   "outputPath": "/path/to/owned/results.json",
   "pairs": 3,
   "outputTokens": 128,
+  "liveKVQuantization": "native",
+  "checkpointQuantization": "native",
+  "kvBackend": "auto",
   "cases": [{
     "name": "short", "donorTokens": 1793, "sharedTokens": 1152,
     "forkTokens": 2304, "demandedTokens": 1024

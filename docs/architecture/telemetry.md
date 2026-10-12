@@ -1,6 +1,6 @@
 # Telemetry
 
-> Last updated: 2026-10-07
+> Last updated: 2026-10-09
 
 How operational data leaves a provider, what the coordinator does with it, and
 why nothing on that path can carry a prompt or slow a request. The heartbeat is
@@ -114,6 +114,30 @@ use the same helper (`coordinator/api/observation/provider_labels.go`).
 are `other` (`coordinator/api/inference/lifecycle_metrics.go`). Arbitrary patch
 numbers and prerelease counters cannot create new series. Exact versions
 remain in provider metadata.
+
+### KV storage and precision attribution
+
+`EngineV2Factory.makeBridge` constructs a once-per-build INFO `engine_health`
+notification with `operation = engine_v2_kv_backend` after successful engine
+construction (`provider-swift/Sources/ProviderCore/Inference/Engine/Factory/EngineV2Config.swift`,
+`emitKVBackendTelemetry`). `fields.backend` names the inference engine,
+`fields.kv_backend` names its storage, and `fields.kv_quantization` names the
+resolved live attention-cache profile rather than checkpoint or model-weight
+precision. The closed values and operation-specific presence
+rules are in the [canonical field contract](../reference/telemetry-schema.md#provider-kv-backend-and-precision-selection).
+
+This event is available to an injected sink, but the production client facade
+discards it. It is not a live coordinator datum or a fleet inventory: older
+records, refusal/posture operations and direct Diffusion bridge assembly can
+omit the precision observation, and absence never implies `native` precision.
+The recurring posture and heartbeat expose storage backend separately; doctor
+checks explicit live-backend requests and does not certify this precision profile
+(`provider-swift/Sources/darkbloom/Diagnostics/KVBackendPosture.swift`,
+`KVBackendPosture.backendCheck`).
+The local daemon snapshot separately records effective live/checkpoint
+precision and the active complete-store layout for `status` and `doctor`.
+Those fields are not added to this event or the coordinator heartbeat; see
+[local diagnostics](../provider/cli-reference.md#darkbloom-doctor).
 
 ### Slot posture sampler lifecycle
 
