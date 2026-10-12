@@ -57,9 +57,11 @@ challenges are handled. Delayed model cleanup does not clear a replacement
 connection's grant.
 
 The existing App Attest client and Apple-operation admission still serialize
-proof work. Cancellation cannot cancel Apple's underlying native call; a late
-callback cannot send an old session's proof through a replacement connection
-after connection invalidation has been processed by the reader.
+proof work. Cancellation cannot cancel Apple's underlying native call. Replies
+use the originating-socket `AppAttestShadowReply` capability, which rechecks the
+current transport immediately before submission. A late callback therefore
+cannot send an old proof through a replacement connection even before the
+reader consumes disconnect. See the [reply contract](../../reference/protocol-messages.md#app-attest-endpoint-resumption-candidate).
 Local Apple success is not a completed outbound write or coordinator acceptance.
 This dispatch change adds no retry, grace period or trusted lifetime; the
 coordinator still verifies fresh evidence and enforces expiry and revocation.

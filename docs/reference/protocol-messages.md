@@ -3,8 +3,9 @@
 > Last updated: 2026-10-12
 
 Every JSON frame on the provider WebSocket (`GET /ws/provider`), with the Go
-type, the Swift type, and the presence rule for each field. Go is the canon
-(`coordinator/protocol/messages.go`, `capacity.go`, `profile.go`, `model_autopilot.go`); Swift mirrors
+type, the Swift type, and the presence rule for each field. Go is the canon in
+the sibling [darkbloom-platform repository](https://github.com/Layr-Labs/darkbloom-platform/tree/master/coordinator/protocol),
+not the transitional coordinator copy here. Swift mirrors
 it (`provider-swift/Sources/ProviderCore/Protocol/Messages.swift`, `Types.swift`,
 `InferenceProfile.swift`, `Autopilot/ModelAutopilot.swift`). The message inventory and additive lifecycle/attestation sections enumerate the accepted types.
 
@@ -82,10 +83,19 @@ policy; the backend must validate those bindings and current authorization.
 `CoordinatorClient.connectAndRun` creates a fresh nonce for every `NWConnection`
 and clears it on teardown. `answerAppAttestResume` answers at most once on that
 registered socket, synchronously without Apple work, and never routes a reply
-onto a replacement socket. `ProviderLoop.run` installs a closure over its fixed
-process key. This changes neither the existing `app_attest_shadow` event/reply
-path nor the responsive model-work split. Resume does not grant local trust,
-refresh an Apple proof, reset the assertion cadence, or extend proof validity.
+onto a replacement socket. The normal `ProviderLoop` installs this responder
+independently of the default-off worker candidate. Resume does not grant local
+trust, refresh an Apple proof, reset the assertion cadence, or extend proof
+validity. It does not change the responsive model-work split.
+
+Ordinary `app_attest_shadow` replies also carry an originating-socket capability:
+`AppAttestShadowReply` in
+`provider-swift/Sources/ProviderCore/Coordinator/AppAttestShadowReply.swift`
+checks session, protocol and matching action, then current connection identity
+and registration immediately before writing. A late Apple result on an old
+reply capability cannot move through the stable outbound router into the next
+connection. Sending is not acknowledgement or authorization. See
+[provider reconnect lifecycle](../architecture/components/provider.md#reconnect-and-attestation-lifecycle).
 
 ## Provider lifecycle drain
 

@@ -448,11 +448,12 @@ and `ProviderLogout.perform` in `provider-swift/Sources/ProviderCore/Auth/Provid
 | `--force` | flag | `false` | Explicitly permit interruption of unfinished work; process exit must still be confirmed (`DrainOptions`, `Logout.requireExited`) |
 
 The command disables watchdog/login recovery, drains and stops the provider,
-and confirms exit before deleting credentials. It holds the lifecycle/update
-lease and, after confirmed exit, the single-instance lock through revocation
-and deletion. A missing token file does not skip shutdown. Unconfirmed exit,
-lock failure or a normal drain timeout refuses logout without removing the
-credential; a published drain remains closed with recovery disabled.
+confirms the captured process identities have exited, and acquires the
+single-instance lock. It holds that lock and the lifecycle/update lease through
+revocation and local token deletion, preventing start/recovery from reusing the
+credential in between. A missing token file does not skip process shutdown.
+Unconfirmed exit, lock failure or a normal drain timeout refuses logout without
+removing the credential; a published drain remains closed with recovery disabled.
 
 After shutdown, it sends the current saved token **itself**, not its hash, as
 `Authorization: Bearer <token>` to `POST /v1/device/revoke` at its recorded issuer.
@@ -469,6 +470,13 @@ saved credential. Tokens and response bodies are not logged. This requires a
 matching platform endpoint; local completion does not establish remote support.
 The request URL keeps the original coordinator's host and port while changing
 only the WebSocket scheme and endpoint path; path text cannot become an authority.
+
+This revokes only the current token, not every machine/account credential. It
+does not remove App Attest/SE keys, model downloads or management profiles.
+Automatic restart stays disabled until `darkbloom start`; link again with
+`darkbloom login` when needed. The backend contract belongs in the sibling
+[platform API reference](https://github.com/Layr-Labs/darkbloom-platform/blob/master/docs/reference/api-contracts.md),
+not the retained coordinator source in this repository.
 
 ### `darkbloom benchmark`
 
@@ -1571,6 +1579,12 @@ must support the checkpoint contract described in
 | `DARKBLOOM_CBV2_MAX_PARTIAL_PREFILLS` | `provider-swift/Sources/ProviderCore/Inference/Engine/Factory/EngineV2Factory+Configuration.swift` (`maxPartialPrefillsKey`) |
 | `DARKBLOOM_PREFILL_DEADLINE_MODE` | `provider-swift/Sources/ProviderCore/Inference/Engine/PrefillDeadlineMode.swift` (`environmentKey`) |
 | `MLX_GATHER_QMM_EXPERT_SLICES` | only when the shell value is exactly `1` (`GemmaOptimizationEnvironment.daemonDrainPassthrough`, `provider-swift/Sources/ProviderCore/Config/GemmaOptimizationEnvironment.swift`) |
+| `DARKBLOOM_APP_ATTEST_WORKER_QUALIFICATION` | only when the shell value is exactly `1`; selects the [opt-in worker candidate](../reference/configuration.md#app-attest-worker-qualification) (`AppAttestWorkerSelection`, `provider-swift/Sources/ProviderCore/Service/LaunchAgent.swift`) |
+
+To opt a background provider into the worker candidate, stop it and run
+`DARKBLOOM_APP_ATTEST_WORKER_QUALIFICATION=1 darkbloom start`. Restart and watchdog
+recovery reuse that saved choice; stop/start without the flag restores the default.
+Native diagnostic/fault-injection flags are never forwarded to the daemon.
 
 The watchdog plist carries its own list: `DARKBLOOM_NO_UPDATE_CHECK`,
 `DARKBLOOM_STATE_FILE`, `DARKBLOOM_WATCHDOG_STATE`, `DARKBLOOM_KV_BACKEND_GUARD`

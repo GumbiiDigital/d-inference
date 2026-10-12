@@ -24,7 +24,8 @@ end-to-end platform authorization.
 ## Native serving qualification
 
 `NativeServeQualificationTests` checks literal-loopback refusal, owner-only
-descriptor inputs, failed-observer lifetime ownership and bounded in-memory App Attest key-ID/budget storage without
+descriptor inputs (including callback-arm marker value, permissions and symlink
+refusal), failed-observer lifetime ownership and bounded in-memory App Attest key-ID/budget storage without
 Apple calls or model allocation. Build the isolated provider test product and run
 `swift test --skip-build --filter NativeServeQualificationTests` after normal
 source-matched metallib staging.
@@ -72,6 +73,14 @@ Compilation and opt-in skips do not constitute a successful physical run.
 The [October 11 native result](../reports/2026-10-11-native-serving-resumption-qualification.md)
 records a full pass for the exact signed Stage C candidate and platform source,
 including the earlier fixture failures and the unchanged production boundaries.
+
+The separate [loaded-engine callback scenario](https://github.com/Layr-Labs/darkbloom-platform/blob/7e69b67aa4173e7af021de4f846e4c4667a25aed/docs/reports/2026-10-12-native-loaded-worker-callback-qualification.md)
+passed on its own frozen signed artifact. The platform test uses the same real
+serving factory plus `DARKBLOOM_NATIVE_WORKER_SERVE_QUALIFICATION=1` and
+`DARKBLOOM_APP_ATTEST_WORKER_QUALIFICATION=1`, normal renewal/retry clocks and
+paid encrypted probes strictly inside the callback-withheld and reap-to-retry
+windows. It does not qualify physical OS/security transitions, reboot,
+self-update or fleet rollout.
 
 ## App Attest provider dispatch
 
@@ -1372,6 +1381,38 @@ source/dependency/binary/metallib/artifact tuple:
 ## App Attest validation
 
 The [App Attest shadow validation commands](../reference/app-attest-shadow.md#validation) cover cryptography, protocol symmetry, counter races, unchanged routing, and coexistence signing. Live macOS 27 acceptance remains separate.
+
+### Provider session reliability candidate
+
+Rebuild and run `make provider-test` with the normal isolated provider test
+runner after changes; the earlier reported focused population does not validate
+new diagnostics/build-source edits. These focused owners cover distinct boundaries:
+
+| Boundary | Provider test owner |
+|---|---|
+| Origin-bound protocol-3 replies even before the loop consumes disconnect | `provider-swift/Tests/ProviderCoreTests/Coordinator/AppAttestShadowReplyTests.swift` |
+| Worker framing, deadlines, process ownership and reap-before-replacement | `provider-swift/Tests/ProviderAppAttestTests/WorkerTransportTests.swift`, `WorkerProcessTests.swift` in the same directory |
+| Shutdown/update retirement, cancellation, lifecycle takeover and fresh-prepare cleanup retry | `provider-swift/Tests/ProviderCoreTests/Service/ProviderLifecycleTests.swift`; `provider-swift/Tests/ProviderCoreTests/Update/AppAttestUpdateLifecycleTests.swift` |
+
+The [endpoint-resumption and logout suites](#provider-endpoint-resumption-and-logout)
+cover the separate protocol-1 and local credential boundaries.
+
+`LaunchAgentEnvironmentTests` checks exact-`1` worker opt-in through serialized
+daemon plists while excluding diagnostic/fault flags. `AppAttestUpdateLifecycleTests`
+checks latched worker dispatch and excludes the legacy stall-restart monitor;
+`AppAttestQualificationCommandTests` rejects the unsupported component-only
+`transport-resumption` scenario before reading private inputs.
+
+Use the [signed native qualification procedure](../../scripts/nativequalification/README.md#actual-apple-test)
+only with explicit authorization and isolated credentials; run its backend
+counterpart from sibling `darkbloom-platform`. Its
+[artifact-bound evidence](../../scripts/nativequalification/README.md#qualification-status)
+record native IPC/suspended-worker and real assertion-callback discard/recovery
+component passes, the separately qualified loaded-engine callback scenario and
+the distinct Stage C resumption run. A later rebuild is not qualified by those
+results; physical OS/update/reboot and fleet-rollout gates remain separate.
+Do not turn opt-in native failures into skips, count signing as Apple acceptance,
+or treat transport fixtures as serving qualification.
 
 ## Cache attempt ownership during model replacement
 

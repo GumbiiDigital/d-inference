@@ -197,6 +197,13 @@ internal enum ProviderLoopError: Error, CustomStringConvertible {
 // `createAttestationSigner`) stay `private`. Behavior is unchanged.
 public actor ProviderLoop {
     internal var appAttestShadowClient: AppAttestShadowClient?
+    internal let usesAppAttestWorker = AppAttestWorkerSelection.qualificationCandidateEnabled
+    internal var appAttestWorkerClient: (any AppAttestWorkerExchangeClient)?
+    internal var nativeWorkerQualification: NativeWorkerServeQualification?
+    internal var appAttestWorkerRetirement: Task<Bool, Never>?
+    internal enum AppAttestWorkerStopReason { case update, shutdown }
+    internal var appAttestWorkerStopReason: AppAttestWorkerStopReason?
+    internal var appAttestWorkerStopped: Bool { appAttestWorkerStopReason != nil }
     internal var appAttestShadowTask: Task<Void, Never>?
     internal var appAttestShadowGeneration: UInt64 = 0
     /// Last local App Attest observation, published in the daemon state file.

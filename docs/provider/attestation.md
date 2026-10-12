@@ -80,7 +80,32 @@ Each `ready` reply carries bounded diagnostics about process start and previous 
 
 For the last two, run `darkbloom report` from an administrator account; macOS lets only administrator accounts read the system log. Use `sudo darkbloom report` instead if this account is allowed to use sudo. The report adds device-wide `devicecheckd` observations reduced to closed failure patterns and numeric codes. They can originate from other apps and are not attributable to Darkbloom, so they do not independently diagnose this provider's key. System-log evidence is never collected or sent automatically.
 
-If an Apple DeviceCheck call never answers, every later App Attest call answers `busy` until the provider process restarts. The provider reports the stall and restarts itself through the normal drain when it is idle; the thresholds and limits are in the [App Attest reference](../reference/app-attest-shadow.md#bounds-and-credential-lifecycle). The log line starts with `App Attest: Apple operation stalled`. Run `darkbloom restart` to recover immediately.
+On the default in-process path, an Apple DeviceCheck call that never answers
+keeps later App Attest calls `busy` until the callback arrives or the provider
+restarts. The provider reports the stall and restarts through the normal drain
+when idle; see the [thresholds and limits](../reference/app-attest-shadow.md#bounds-and-credential-lifecycle).
+The log line starts with `App Attest: Apple operation stalled`. An explicit
+`darkbloom restart` uses the same graceful lifecycle; it is not instant or proof
+that Apple will accept the next call.
+
+The separate [supervised worker candidate](../architecture/security/identity-binding.md#supervised-app-attest-worker-candidate)
+is internal, defaults off and is **not ready for production**. It retires the
+worker rather than restarting the inference process; do not enable its
+[qualification flag](../reference/configuration.md#app-attest-worker-qualification)
+as an operator workaround. The [recorded native passes](../../scripts/nativequalification/README.md#qualification-status)
+separate worker components, loaded-engine callback recovery and Stage C
+resumption. They apply only to the tested signed artifacts; rebuilt binaries
+need fresh qualification, and physical OS/update/reboot and fleet-rollout gates
+remain separate.
+macOS 27, GUI-session checks and an intact signature alone are not Apple acceptance.
+
+During a same-process reconnect the provider can answer a fresh, encrypted
+[endpoint-resumption challenge](../reference/protocol-messages.md#app-attest-endpoint-resumption-candidate)
+without another Apple call. This proves custody of the existing in-memory key,
+not local permission to serve or a fresh Apple proof. The coordinator must
+support the separate protocol and authorize the new connection. Neither resume
+nor worker replacement extends the coordinator-driven renewal schedule or
+fifteen-minute proof-validity window; process restart creates a new endpoint key.
 
 After enrollment, a missing or unverified recurring risk receipt or missing risk metric remains unknown. Under the [updated platform receipt policy](https://github.com/Layr-Labs/darkbloom-platform/blob/20b821646acfbf0968d1c30239cb583eeb0fa2bc/docs/reference/provider-authorization.md#receipt-monitoring-and-stricter-readiness), this alone does not clear an accepted, otherwise valid basic serving grant or require extra assertions. First authorization still requires a fresh cryptographically verified proof and coordinator acceptance under current build, revocation and identity checks. Rewards and MDM-removal readiness retain stricter verified-receipt and decision-freshness requirements; use the coordinator's explicit readiness verdict, not basic serving approval, and do not assume every deployment uses the updated policy.
 

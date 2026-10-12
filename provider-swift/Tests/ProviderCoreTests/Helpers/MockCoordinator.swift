@@ -369,6 +369,10 @@ public final class MockCoordinator: @unchecked Sendable {
         try await sendCoordinatorMessage(.appAttestShadow(payload))
     }
 
+    public func pushCapacityProbe(_ probe: CoordinatorMessage.CapacityProbe) async throws {
+        try await sendCoordinatorMessage(.capacityProbe(probe))
+    }
+
     public func pushTrustStatus(_ status: CoordinatorMessage.TrustStatus) async throws {
         try await sendCoordinatorMessage(.trustStatus(status))
     }

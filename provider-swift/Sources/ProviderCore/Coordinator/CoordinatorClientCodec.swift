@@ -221,9 +221,6 @@ public enum CoordinatorClientCodec {
                 modelHashes: payload.modelHashes
             ))
 
-        case .appAttestShadow(let payload):
-            return .appAttestShadow(payload)
-
         case .codeAttestationResponse(let nonce, let signature, _):
             return .codeAttestationResponse(ProviderMessage.CodeAttestationResponse(
                 nonce: nonce,

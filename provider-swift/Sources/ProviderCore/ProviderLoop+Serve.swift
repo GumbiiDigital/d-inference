@@ -20,7 +20,7 @@ extension ProviderLoop {
 
     public func run() async throws {
         startLifecycleMonitor()
-        defer { lifecycleMonitorTask?.cancel(); lifecycleMonitorTask = nil; cancelAppAttestShadow(); cancelAppAttestStallMonitor() }
+        defer { lifecycleMonitorTask?.cancel(); lifecycleMonitorTask = nil; cancelAppAttestShadow(stopWorker: true); cancelAppAttestStallMonitor() }
         if servingDrain.refusing { return }
         // Retired-knob warnings are emitted once by `Start.run()`, before
         // the serving-mode split — see `RetiredKnobWarnings`. Doing it here
@@ -389,8 +389,8 @@ extension ProviderLoop {
             // invalidation therefore precedes the next session's challenge.
             for await event in events {
                 switch event {
-                case .appAttestShadow(let payload):
-                    handleAppAttestShadow(payload, send: send)
+                case .appAttestShadow(let payload, let reply):
+                    handleAppAttestShadow(payload, reply: reply)
                     continue
                 case .trustStatus(let level, let status, let reason, let authorization):
                     handleTrustStatus(trustLevel: level, status: status, reason: reason,
