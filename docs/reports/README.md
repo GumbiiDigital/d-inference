@@ -11,6 +11,7 @@ what was decided and whether it shipped read [`../design/README.md`](../design/R
 File names start with the date of the work (`YYYY-MM-DD-slug.md`). Each file's
 freshness stamp carries its own date, not the current one.
 
+- [MLX-CUDA on DGX Spark](2026-10-12-mlx-cuda-dgx-spark.md) — official pip MLX-CUDA on GB10: Metal parity tolerance, MLX-CUDA ÷ llama.cpp ratios (stock and with a CUDA gated-delta kernel), the 4-bit gap and a quantized-matmul swap, and Linux build gaps; one box type, batch 1, median of five.
 - [Native loaded-engine callback recovery](https://github.com/Layr-Labs/darkbloom-platform/blob/7e69b67aa4173e7af021de4f846e4c4667a25aed/docs/reports/2026-10-12-native-loaded-worker-callback-qualification.md) - platform-owned receipt for real callback withholding, worker retirement/replacement and paid encrypted inference with an unchanged loaded provider engine.
 - [Native loaded-engine endpoint resumption](2026-10-11-native-serving-resumption-qualification.md) - real Apple verification, full loopback coordinator, encrypted inference across a 125-second break, unchanged loaded engine and assertion counter, and exactly-one-refund evidence.
 - [Native inference and quantized checkpoint qualification](2026-10-11-native-inference-checkpoint-storage.md) — eight-artifact storage/restore measurements, matched prefill controls, OS-backed process restart, and explicit performance limits.

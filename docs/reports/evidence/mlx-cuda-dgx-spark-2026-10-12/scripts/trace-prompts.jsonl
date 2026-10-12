@@ -1,0 +1,8 @@
+{"id": "p1-capital", "text": "The capital of France is"}
+{"id": "p2-code", "text": "def fibonacci(n):\n    \"\"\"Return the n-th Fibonacci number.\"\"\"\n"}
+{"id": "p3-math", "text": "Question: A train travels 120 km in 1.5 hours. What is its average speed in km/h?\nAnswer:"}
+{"id": "p4-story", "text": "Once upon a time, in a small village at the edge of a dark forest, there lived"}
+{"id": "p5-list", "text": "Three reasons why unit tests are useful:\n1."}
+{"id": "p6-json", "text": "Convert to JSON: name Alice, age 30, city Berlin.\n{"}
+{"id": "p7-explain", "text": "In one paragraph, explain how a transformer language model predicts the next token."}
+{"id": "p8-translate", "text": "English: The weather is nice today.\nGerman:"}
